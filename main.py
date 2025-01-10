@@ -1,10 +1,30 @@
 import asyncio
 import json
+import logging
+import logging.config
 from datetime import datetime
 
 import aiohttp
 import redis
 from pydantic import BaseModel, Field
+
+logging.config.dictConfig({
+    'version': 1,
+    'handlers': {
+        'telegram': {
+            'class': 'telegram_handler.TelegramHandler',
+            'token': '7300288725:AAFuyPyNHiW5CCHFzE5kknn1_eMxTfjLsTQ',
+            'chat_id': '1370280956'
+        }
+    },
+    'loggers': {
+        'tg': {
+            'handlers': ['telegram'],
+            'level': 'DEBUG'
+        }
+    }
+})
+logger = logging.getLogger("tg")
 
 
 class TrainData(BaseModel):
@@ -23,9 +43,10 @@ async def parse_trains(trains: str) -> list[TrainData]:
 
 async def fetch_train_data() -> str:
     session = aiohttp.ClientSession()
+    timeout = aiohttp.ClientTimeout(total=None, sock_connect=60, sock_read=60)
     url = "https://radar.bdz.bg/bg"
 
-    async with session.get(url) as resp:
+    async with session.get(url, timeout=timeout) as resp:
         content = (await resp.content.read()).decode("utf-8")
 
     # content = open("test.html", mode="r", encoding="utf-8").read()
@@ -42,7 +63,7 @@ async def main():
     # data = await fetch_train_data()
     # open("test.html", mode="w+", encoding="utf-8").write(data)
     r = redis.Redis(host='127.0.0.1', port=6379, decode_responses=True)
-
+    
     prev_id_to_data = None
     while True:
         curr_trains = await parse_trains(await fetch_train_data())
@@ -65,4 +86,7 @@ async def main():
 
         await asyncio.sleep(30)
 
-asyncio.run(main())
+try:
+    asyncio.run(main())
+except Exception as e:
+    logger.exception(e)

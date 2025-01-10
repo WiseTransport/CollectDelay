@@ -1,3 +1,4 @@
+python-telegram-handler
 redis[hiredis]
 pydantic
 aiohttp
